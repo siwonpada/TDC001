@@ -19,8 +19,8 @@ namespace TDC001
             try
             {
                 // Bring devices connnected to the computer
-                Console.WriteLine(Console.Out.NewLine + "Bringing devices connected to the computer....");
-                DeviceManagerCLI.BuildDeviceList();
+                Console.WriteLine("Bringing devices connected to the computer....");
+                DeviceManagerCLI.BuildDeviceList();     
             }
             catch (Exception ex)
             {
@@ -31,6 +31,12 @@ namespace TDC001
 
             // Get available Controller and Print it
             List<string> serialNumbers = DeviceManagerCLI.GetDeviceList(TCubeDCServo.DevicePrefix);
+            if (serialNumbers.Count == 0)
+            {
+                Console.WriteLine("No device found");
+                Console.ReadKey();
+                return;
+            }
             for (int i = 0; i < serialNumbers.Count; i++)
             {
                 Console.WriteLine(i + ": " + serialNumbers[i]);
