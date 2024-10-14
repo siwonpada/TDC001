@@ -157,6 +157,27 @@ namespace TDC001
             device.SetVelocityParams(velPars);
             Thread.Sleep(500);
 
+            // go to the fromPosition
+            try
+            {
+                ManualResetEvent waitEvent = new ManualResetEvent(false);
+                waitEvent.Reset();
+                Console.WriteLine("Moving to from position");
+                device.MoveTo(fromPosition, p => waitEvent.Set());
+                if (!waitEvent.WaitOne(60000))
+                {
+                    throw new MoveTimeoutException(device.DeviceID, "MoveTo");
+                }
+                device.ThrowLastDeviceException();
+                Console.WriteLine("Device at from position");
+            }
+            catch (Exception)
+            {
+                Console.WriteLine("Failed to move device");
+                Console.ReadKey();
+                return;
+            }
+
             Console.WriteLine("Starting Repeating Motion....");
             //Repeating Motion
             for (int i = 0; i < iter; i++)
