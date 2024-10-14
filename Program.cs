@@ -44,6 +44,7 @@ namespace TDC001
 
             // Get serial no. from the user
             string selectedIndex, serialNumber;
+            Console.Write("Select a device index: ");
             selectedIndex = Console.ReadLine();
             try
             {
@@ -115,11 +116,20 @@ namespace TDC001
             Console.WriteLine($"Serial Number: {deviceInfo.SerialNumber}");
             Console.WriteLine($"Name: {deviceInfo.Name}");
 
+
             // Homing device
             try
             {
+                ManualResetEvent waitEvent = new ManualResetEvent(false);
+
+                waitEvent.Reset();
                 Console.WriteLine("Homing device");
-                device.Home(60000);
+                device.Home(p => waitEvent.Set());
+                if(!waitEvent.WaitOne(60000))
+                {
+                    throw new MoveTimeoutException(device.DeviceID, "Home");
+                }
+                device.ThrowLastDeviceException();
                 Console.WriteLine("Device Homed!");
             }
             catch (Exception)
@@ -131,12 +141,12 @@ namespace TDC001
 
 
             // Get User Params
-            Console.Write("Velocity: ");
-            int velocity = Convert.ToInt32(Console.ReadLine());
+            Console.Write("Velocity (mm/s): ");
+            decimal velocity = Convert.ToDecimal(Console.ReadLine());
             Console.Write("From position: ");
-            int fromPosition = Convert.ToInt32(Console.ReadLine());
+            decimal fromPosition = Convert.ToDecimal(Console.ReadLine());
             Console.Write("To position: ");
-            int toPosition = Convert.ToInt32(Console.ReadLine());
+            decimal toPosition = Convert.ToDecimal(Console.ReadLine());
             Console.Write("Iter: ");
             int iter = Convert.ToInt32(Console.ReadLine());
 
@@ -147,13 +157,35 @@ namespace TDC001
             device.SetVelocityParams(velPars);
             Thread.Sleep(500);
 
+            Console.WriteLine("Starting Repeating Motion....");
             //Repeating Motion
             for (int i = 0; i < iter; i++)
             {
-                device.MoveTo(toPosition, 60000);
-                Thread.Sleep(500);
-                device.MoveTo(fromPosition, 60000);
-                Thread.Sleep(500);
+                try
+                {
+                    Console.WriteLine($"Iteration {i + 1}");
+                    ManualResetEvent waitEvent = new ManualResetEvent(false);
+                    waitEvent.Reset();
+                    device.MoveTo(toPosition, p => waitEvent.Set());
+                    if (!waitEvent.WaitOne(60000))
+                    {
+                        throw new MoveTimeoutException(device.DeviceID, "MoveTo");
+                    }
+                    device.ThrowLastDeviceException();
+                    Thread.Sleep(500);
+                    device.MoveTo(fromPosition, 60000);
+                    if (!waitEvent.WaitOne(60000))
+                    {
+                        throw new MoveTimeoutException(device.DeviceID, "MoveTo");
+                    }
+                    device.ThrowLastDeviceException();
+                    Thread.Sleep(500);
+                } catch (Exception)
+                {
+                    Console.WriteLine("Failed to move device");
+                    Console.ReadKey();
+                    return;
+                }
             }
 
 
@@ -161,6 +193,7 @@ namespace TDC001
             device.StopPolling();
             device.Disconnect(true);
 
+            Console.WriteLine("Process Completed");
             SimulationManager.Instance.InitializeSimulations();
             Console.ReadKey();
         }
